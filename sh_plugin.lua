@@ -1,6 +1,6 @@
 PLUGIN.name = "System Fabryki"
 PLUGIN.author = "Szkelo"
-PLUGIN.description = "Plugin dodający interaktywne fabryki z systemem Derma."
+PLUGIN.description = "Plugin dodający fabryki"
 
 ix.production = ix.production or {}
 ix.production.recipes = ix.production.recipes or {}
@@ -9,7 +9,8 @@ local PERSISTENT_ENTITIES = {
     ["ix_fabryka"] = true,
     ["ix_konsola"] = true,
     ["ix_stol_procesowy"] = true,
-    ["ix_pompa_paliwa"] = true 
+    ["ix_pompa_paliwa"] = true,
+    ["ix_magazyn_skrzynek"] = true
 }
 
 -- FUNKCJA ZAPISU (Serwer)

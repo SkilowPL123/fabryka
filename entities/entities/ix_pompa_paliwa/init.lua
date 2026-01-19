@@ -1,20 +1,18 @@
+-- helix/plugins/fabryka/entities/entities/ix_dystrybutor/init.lua
 include("shared.lua")
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 
 -- =====================================================
--- KONFIGURACJA MIEJSCA SPAWNU KANISTRA
+-- KONFIGURACJA DYSTRYBUTORA
 -- =====================================================
--- Vector(do przodu/tyłu, w lewo/prawo, góra/dół)
--- Zmieniaj te wartości, aby kanister nie spawnował się w środku modelu
-local FUEL_SPAWN_OFFSET = Vector(65, 0, 30) 
-
--- Angle(pitch, yaw, roll) - rotacja kanistra po zrespieniu
-local FUEL_SPAWN_ANGLE = Angle(0, 0, 0)
+local FUEL_WAIT_TIME = 5     -- Ile sekund gracz musi czekać (pasek postępu)
+local FUEL_COOLDOWN = 15     -- Ile sekund maszyna odpoczywa po wydaniu paliwa
+local FUEL_SPAWN_OFFSET = Vector(65, 0, 30) -- Pozycja spawnu kanistra
 -- =====================================================
 
 function ENT:Initialize()
-    self:SetModel("models/props_wasteland/fuel_storage01a.mdl")
+    self:SetModel("models/props_junk/TrashBin01a.mdl")
     self:PhysicsInit(SOLID_VPHYSICS)
     self:SetSolid(SOLID_VPHYSICS)
     self:SetUseType(SIMPLE_USE)
@@ -24,44 +22,51 @@ function ENT:Initialize()
         phys:EnableMotion(false)
     end
 
-    self.nextSpawn = 0 
+    self.nextSpawn = 0 -- Inicjalizacja czasu następnego użycia
 end
 
 function ENT:Use(activator)
     if (not IsValid(activator) or not activator:IsPlayer()) then return end
 
+    -- 1. Sprawdzamy Cooldown maszyny
+    local timeLeft = math.ceil(self.nextSpawn - CurTime())
     if (CurTime() < self.nextSpawn) then
-        activator:Notify("Dystrybutor przesyła paliwo, poczekaj chwilę...")
+        activator:Notify("Dystrybutor jest pusty. Odczekaj jeszcze " .. timeLeft .. " sekund.")
         return
     end
 
-    self.nextSpawn = CurTime() + 2
+    -- 2. Rozpoczynamy akcję czasową (Pasek postępu)
+    activator:SetAction("Pobieranie paliwa...", FUEL_WAIT_TIME, function()
+        -- Ten kod wykona się PO 5 sekundach (jeśli gracz nie przerwie akcji)
+        if (not IsValid(self) or not IsValid(activator)) then return end
 
-    -- Obliczamy pozycję i rotację na podstawie Twojej konfiguracji powyżej
-    local spawnPos = self:LocalToWorld(FUEL_SPAWN_OFFSET)
-    local spawnAng = self:GetAngles() + FUEL_SPAWN_ANGLE
-    
-    ix.item.Spawn("paliwo", spawnPos, function(item, ent)
-        if (IsValid(ent)) then
-            ent:SetAngles(spawnAng)
-            
-            -- Opcjonalnie: lekki popchnięcie kanistra, żeby nie stał idealnie w miejscu
-            local phys = ent:GetPhysicsObject()
-            if (IsValid(phys)) then
-                phys:ApplyForceCenter(self:GetForward() * 50)
+        -- Sprawdzamy dystans na koniec akcji (zabezpieczenie)
+        if (activator:GetPos():DistToSqr(self:GetPos()) > 20000) then
+            activator:Notify("Jesteś za daleko dystrybutora!")
+            return
+        end
+
+        -- Ustawiamy Cooldown (startuje dopiero po otrzymaniu paliwa)
+        self.nextSpawn = CurTime() + FUEL_COOLDOWN
+
+        -- Spawnowanie przedmiotu
+        local spawnPos = self:LocalToWorld(FUEL_SPAWN_OFFSET)
+        ix.item.Spawn("paliwo", spawnPos, function(item, ent)
+            if (IsValid(ent)) then
+                ent:SetAngles(self:GetAngles())
+                
+                local phys = ent:GetPhysicsObject()
+                if (IsValid(phys)) then
+                    phys:ApplyForceCenter(self:GetForward() * 50)
+                end
             end
-        end
+        end)
+
+        -- Efekty dźwiękowe końcowe
+        self:EmitSound("buttons/light_switch_on.wav", 65, 120)
+        activator:Notify("Pobrano kanister z paliwem.")
     end)
 
-    -- Efekty dźwiękowe
-    self:EmitSound("ambient/machines/gas_leak_loop1.wav", 70, 110, 0.4)
-    
-    timer.Simple(0.6, function()
-        if (IsValid(self)) then
-            self:StopSound("ambient/machines/gas_leak_loop1.wav")
-            self:EmitSound("buttons/light_switch_on.wav", 60, 120)
-        end
-    end)
-
-    activator:Notify("Pobrano kanister z paliwem.")
+    -- Opcjonalnie: dźwięk startowy (pompowanie)
+    self:EmitSound("ambient/machines/gas_leak_loop1.wav", 70, 100, 0.4)
 end
