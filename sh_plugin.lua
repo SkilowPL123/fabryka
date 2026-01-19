@@ -8,7 +8,8 @@ ix.production.recipes = ix.production.recipes or {}
 local PERSISTENT_ENTITIES = {
     ["ix_fabryka"] = true,
     ["ix_konsola"] = true,
-    ["ix_stol_procesowy"] = true -- To jest Twój stół/paczka na stole
+    ["ix_stol_procesowy"] = true,
+    ["ix_pompa_paliwa"] = true 
 }
 
 -- FUNKCJA ZAPISU (Serwer)
